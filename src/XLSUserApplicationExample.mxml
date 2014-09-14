@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   preinitialize="preinitializeHandler(event)"
+					   close="closeHandler(event)">
+	<s:Group width="100%" height="100%">
+		<s:layout>
+			<s:VerticalLayout />
+		</s:layout>
+		
+	<s:Button id="loadExcelButton" label="load Excel file" click="Loadbutton_clickHandler(event)"/>
+	<mx:DataGrid id="excelSpreadSheet" width="100%" height="100%"
+				 dataProvider="{xlsSheetValues}" draggableColumns="false"
+				 horizontalScrollPolicy="{ScrollPolicy.ON}" lockedRowCount="1"
+				 verticalScrollPolicy="{ScrollPolicy.ON}"
+				 contentBackgroundAlpha="0.0"/>
+		
+	</s:Group>
+	<!--comments
+	Author : Huges Sansen, SHANKAA
+		This example shows how to use the ExcelFile api and CoWorker (worker to worker communication framework proposed by Shankaa)
+		This example opens a Datagrid with the first spreadsheet of a workbook.
+		The analysis of the spreadsheet is done inside a worker.
+		
+		deals with .xls and .xlsx files
+	-->
+	<fx:Script>
+		<![CDATA[
+			import flash.net.registerClassAlias;
+			
+			import mx.events.FlexEvent;
+			
+			import flashx.textLayout.container.ScrollPolicy;
+			
+			import org.as3.ms.events.XLSEvent;
+			import org.as3.ms.xls.Cell;
+			import org.as3.ms.xls.ExcelFile;
+			import org.as3.ms.xls.Sheet;
+			import org.shankaa.coworkers.WorkerManager;
+			import org.shankaa.coworkers.stubs.Stub_ExcelFile;
+			
+			private var excelFile			: ExcelFile;
+			private var _excelFileName		: String;
+			private var _excelFileExtension		: String;
+			private var _excelFileByteArray	: ByteArray;
+			
+			
+			private var remoteWorker		: Worker;
+			private var requestChannel 		: MessageChannel;
+			
+			[Bindable]
+			public var xlsSheetValues		: Array;
+			
+			
+			protected function preinitializeHandler(event:FlexEvent):void
+			{
+				var xlsWorkerId : int = 1;
+				remoteWorker = WorkerManager.initializeExcelDataWorker(xlsWorkerId,Worker.current);
+				requestChannel = Worker.current.createMessageChannel(remoteWorker);
+				requestChannel.addEventListener(Event.CHANNEL_STATE,onRequestChannelState);
+				remoteWorker.setSharedProperty("requestChannel",requestChannel);
+				remoteWorker.start();
+			}
+			
+			protected function onRequestChannelState(event:Event):void{
+				trace("requestChannel state",(event.currentTarget as MessageChannel).state)
+			}
+			
+			
+			
+			protected function closeHandler(event:Event):void
+			{
+				remoteWorker.terminate();
+			}
+			
+			protected function loadXLSFromByteArray(xls:ByteArray,onLoaded:Function,useThreading : Boolean = true):void {
+				if(useThreading && WorkerDomain.isSupported){
+					xlsSheetValues = null;
+					registerClassAlias("org.as3.ms.xls.ExcelFile", ExcelFile);
+					registerClassAlias("org.as3.ms.xls.Sheet", Sheet);
+					registerClassAlias("org.as3.ms.xls.Cell", Cell);
+					
+					var remoteExcel		: Stub_ExcelFile	= new Stub_ExcelFile(remoteWorker);
+					
+					var onCallback		: Function			= function(event:Event):void{
+						var excelFile	: ExcelFile			= (event.currentTarget as MessageChannel).receive();
+						onLoaded(excelFile);
+					}
+					
+					var onEvent				: Function			= function(event:Event):void{
+						var eventObject		: *				= (event.currentTarget as MessageChannel).receive();
+						var progressEvent 	: ProgressEvent;
+						var xlsEvent		: XLSEvent;
+						switch(eventObject.type){
+							case "excelProgess":
+							case "excelComplete":
+								progressEvent = new ProgressEvent("excelProgess",false,true,eventObject.bytesLoaded,eventObject.bytesTotal);
+								onExcelAnalysisProgress(progressEvent);
+								break;
+							case "excelFormatError":
+								progressEvent = new ProgressEvent("excelFormatError",false,true,eventObject.bytesLoaded,eventObject.bytesTotal);
+								onExcelFormatError(progressEvent);
+								break;
+							case "sizingSpreadsheet":
+							case "sizingSpreadsheetOver":
+								xlsEvent = new XLSEvent("sizingSpreadsheetOver",eventObject.numRows,eventObject.numCol);
+								onSizingSpreadsheet(xlsEvent);
+								break;
+						}
+					}
+					
+					remoteExcel.loadFromByteArray(onCallback,onEvent,xls,_excelFileExtension);
+					
+					
+				} else {
+					excelFile = new ExcelFile();
+					excelFile.addEventListener("excelProgess",onExcelAnalysisProgress);
+					excelFile.addEventListener("excelFormatError",onExcelFormatError);
+					excelFile.addEventListener("sizingSpreadsheet",onSizingSpreadsheet);
+					excelFile.addEventListener("sizingSpreadsheetOver",onSizingSpreadsheet);
+					
+					var onXLSLoaded : Function = function():void{
+						onLoaded(excelFile);
+					}
+					
+					excelFile.loadFromByteArraySimulatedThreading(xls,onXLSLoaded,2000);
+				}
+			}
+			
+			/**
+			 * handler for the ExcelFile progressEvent
+			 * 
+			 * must be overriden
+			 */
+			protected function onExcelAnalysisProgress(event:ProgressEvent):void{
+				trace("excel progress",event.bytesLoaded,"on",event.bytesTotal, Math.round(100*event.bytesLoaded/event.bytesTotal),"%");
+			}
+			
+			/**
+			 * must be overriden
+			 * 
+			 * @param event
+			 * 
+			 */
+			protected function onExcelFormatError(event:ProgressEvent):void{
+				
+			}
+			
+			protected function onSizingSpreadsheet(event:XLSEvent):void{
+				
+			}
+			
+			protected function onXLSLoaded(xlsFile:ExcelFile):void{
+				var sheet : Sheet = xlsFile.sheets[0];
+				xlsSheetValues = sheet.values;
+			}
+			
+			protected function Loadbutton_clickHandler(event:MouseEvent):void
+			{
+				var fileRef:FileReference = new FileReference();
+				fileRef.addEventListener(Event.CANCEL, cancelHandler);
+				fileRef.addEventListener(Event.SELECT, selectDataHandler);
+				var xlsFileFilter:FileFilter = new FileFilter("Data Excel file (*.xls,*.xlsx)", "*.xls;*.xlsx");
+				var formats:Array = new Array(xlsFileFilter);
+				fileRef.browse(formats);
+				
+			}
+			
+			private function cancelHandler(event:Event):void{
+				
+			}
+			
+			private function selectDataHandler(event:Event):void{
+				var file:FileReference = FileReference(event.target);
+				var fileName:String = file.name;
+				file.addEventListener(Event.OPEN,openHandler);
+				file.addEventListener(ProgressEvent.PROGRESS,progressHandler);
+				file.addEventListener(Event.COMPLETE, dataCompleteHandler);
+				file.addEventListener(IOErrorEvent.IO_ERROR, ioErrorHandler);
+				file.addEventListener(Event.OPEN, openHandler);
+				
+				file.addEventListener(SecurityErrorEvent.SECURITY_ERROR, securityErrorHandler);
+				
+				// it seems that it is better to delay the load activation
+				var loadFunction:Function = function():void{
+					file.load();
+				}
+				loadFunction();
+			}
+			
+			private function openHandler(event:Event):void{
+				trace("openHandler",event);
+				
+			}
+			
+			private function progressHandler(event:ProgressEvent):void{
+				trace("progress",event.bytesLoaded,event.bytesTotal);
+			}
+			
+			private function dataCompleteHandler(event:Event):void{
+				var file:FileReference = FileReference(event.target);
+				_excelFileName = file.name;
+				_excelFileExtension = file.extension;
+				
+				excelFileByteArray= file.data;
+			}
+			
+			private function ioErrorHandler(event:IOErrorEvent):void{
+				trace("ioErrorHandler: " + event.errorID);
+			}
+			
+			private function securityErrorHandler(event:SecurityErrorEvent):void {
+				trace("securityErrorHandler: " + event.errorID);
+			}
+			
+			private function set excelFileByteArray(value:ByteArray):void{
+				try{
+					_excelFileByteArray = value;
+					_excelFileByteArray.position = 0;
+					loadXLSFromByteArray(_excelFileByteArray,onXLSLoaded,true);
+					
+				} catch (error:Error){
+					
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+</s:WindowedApplication>
