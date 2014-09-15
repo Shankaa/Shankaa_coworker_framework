@@ -10,7 +10,7 @@ package org.shankaa.coworkers.example
 		
 		function doSomething(arg0:String):void
 		
-		function doSomeThingDoNotBlock(callbackFunction:Function,arg0:String):void;
+		function doSomethingDoNotBlock(callbackFunction:Function,arg0:String):void;
 		
 	}
 }

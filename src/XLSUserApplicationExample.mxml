@@ -37,6 +37,7 @@
 			import org.as3.ms.xls.Cell;
 			import org.as3.ms.xls.ExcelFile;
 			import org.as3.ms.xls.Sheet;
+			import org.shankaa.coworkers.DataWorker;
 			import org.shankaa.coworkers.WorkerManager;
 			import org.shankaa.coworkers.stubs.Stub_ExcelFile;
 			
@@ -57,9 +58,9 @@
 			{
 				var xlsWorkerId : int = 1;
 				remoteWorker = WorkerManager.initializeExcelDataWorker(xlsWorkerId,Worker.current);
-				requestChannel = Worker.current.createMessageChannel(remoteWorker);
+				requestChannel =  WorkerManager.getRequestChannel(remoteWorker);
 				requestChannel.addEventListener(Event.CHANNEL_STATE,onRequestChannelState);
-				remoteWorker.setSharedProperty("requestChannel",requestChannel);
+				remoteWorker.setSharedProperty(DataWorker.DEFAULT_REQUEST_CHANNEL_ID,requestChannel);
 				remoteWorker.start();
 			}
 			

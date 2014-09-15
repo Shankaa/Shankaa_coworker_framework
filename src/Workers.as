@@ -18,8 +18,6 @@ package
 		private static var org_shankaa_coworkers_ExcelDataWorker_ByteClass:Class;
 		
 		
-		[Embed(source="../workerswfs/org/shankaa/coworkers/CoworkingObjectDataWorker.swf", mimeType="application/octet-stream")]
-		private static var org_shankaa_coworkers_CoworkingObjectDataWorker_ByteClass:Class;
 		
 		
 		
@@ -32,10 +30,6 @@ package
 		}
 		
 		
-		public static function get org_shankaa_coworkers_CoworkingObjectDataWorker():ByteArray
-		{
-			return new org_shankaa_coworkers_CoworkingObjectDataWorker_ByteClass();
-		}
 		
 		
 	}

@@ -8,6 +8,6 @@ package org.shankaa.coworkers.example
 		
 		function doSomethingInWorker(replyChannel:MessageChannel,eventChannel:MessageChannel,arg0:String):void
 		
-		function doSomeThingDoNotBlockInWorker(replyChannel:MessageChannel,eventChannel:MessageChannel,callbackFunction:Function,arg0:String):void;
+		function doSomethingDoNotBlockInWorker(replyChannel:MessageChannel,eventChannel:MessageChannel,callbackFunction:Function,arg0:String):void;
 	}
 }
