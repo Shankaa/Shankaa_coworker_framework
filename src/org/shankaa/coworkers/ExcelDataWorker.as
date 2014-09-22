@@ -13,12 +13,16 @@ package org.shankaa.coworkers
 			super();
 		}
 		
-		protected override function initialize():void
+		protected override function initializeAliases():void
 		{	
 			// register all the classes you need to pass from the main worker to this worker
 			registerClassAlias("org.as3.ms.xls.ExcelFile", ExcelFile);
 			registerClassAlias("org.as3.ms.xls.Sheet", Sheet);
 			registerClassAlias("org.as3.ms.xls.Cell", Cell);
+		}
+		
+		protected override function postInitialize():void{
+			//does nothing
 		}
 	}
 }

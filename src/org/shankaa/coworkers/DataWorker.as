@@ -21,20 +21,21 @@ package org.shankaa.coworkers
 	 */
 	public class DataWorker extends Sprite
 	{
+		public static const DEFAULT_REQUEST_CHANNEL_ID	: String	= "requestChannel";
 		
-		private var localObjects				: Dictionary = new Dictionary();
-		private var requestChannel				: MessageChannel;
+		private var localObjects						: Dictionary = new Dictionary();
+		private var requestChannel						: MessageChannel;
 		
-		private var _name						: String = UIDUtil.createUID();
+		private var _name								: String = UIDUtil.createUID();
 		
-		private var _requestChannelID			: String = "requestChannel";
+		private var _requestChannelID					: String = DEFAULT_REQUEST_CHANNEL_ID;
 		
-		protected function set requestChannelID(value:String):void{
+		private function set requestChannelID(value:String):void{
 			_requestChannelID = value;
 			initialize();
 		}
 		
-		protected function get requestChannelID():String{
+		private function get requestChannelID():String{
 			return _requestChannelID;
 		}
 		
@@ -51,17 +52,40 @@ package org.shankaa.coworkers
 		 * creates all the channels
 		 * 
 		 */
-		protected function initialize():void
+		private function initialize():void
 		{	
 			
 			try{
+				initializeAliases();
 				
-				
-				requestChannel	= Worker.current.getSharedProperty("requestChannel") as MessageChannel;
+				requestChannel	= Worker.current.getSharedProperty(requestChannelID) as MessageChannel;
 				requestChannel.addEventListener(Event.CHANNEL_MESSAGE,onInputHandler);
+				
+				postInitialize();
 			} catch (error:Error){
 				trace(error.getStackTrace());
 			}
+			
+		}
+		
+		/**
+		 * 
+		 * called at the begining of the initialize function
+		 * all subclasses should implement this function
+		 * 
+		 * override this function with class aliases registration
+		 * registerClassAlias("org.example.MyObject",MyObject);
+		 * 
+		 */
+		protected function initializeAliases():void{
+			
+		}
+		
+		/**
+		 *  called at the end of the initialize function
+		 * 
+		 */
+		protected function postInitialize():void{
 			
 		}
 		
@@ -75,7 +99,7 @@ package org.shankaa.coworkers
 		 */
 		
 		private function onInputHandler(event:Event):void{
-			var request			: Array		= requestChannel.receive();
+			var request			: Array = requestChannel.receive();
 			var requestType		: String	= (request as Array).shift();
 			request[2]						= Worker.current.getSharedProperty(request[2] as String) as MessageChannel;
 			request[3]						= Worker.current.getSharedProperty(request[3] as String) as MessageChannel;
@@ -109,6 +133,20 @@ package org.shankaa.coworkers
 					break;
 				case "setRemoteObjectValue":
 					onSetRemoteObjectValue(request);
+					break;
+				
+				//following cases are for tests....
+				case "test0":
+					trace("request channel test0 on DataWorker ok");
+					break;
+				case "test1":
+					trace("request channel test1 on DataWorker ok");
+					break;
+				case "test2":
+					trace("request channel test2 on DataWorker ok");
+					break;
+				case "test3":
+					trace("request channel test3 on DataWorker ok");
 					break;
 			}
 		}
